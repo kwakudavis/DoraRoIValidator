@@ -37,9 +37,13 @@ export default function HomePage() {
 
   if (!hasStarted) {
     return (
-      <main>
+      <main className={styles.appShell}>
         <section className={styles.sketchCard}>
           <h1 className={styles.sketchTitle}>DORA Register of Information Validator</h1>
+          <p className={styles.sketchSubtitle}>
+            A calm, focused workspace for quickly validating your RoI files. Upload a report,
+            review categories, and run checks with zero clutter.
+          </p>
 
           <label className={styles.uploadSketchBox}>
             <input
@@ -49,12 +53,13 @@ export default function HomePage() {
                 setSelectedFileName(event.target.files?.[0]?.name ?? null)
               }
             />
+            <span className={styles.uploadText}>
+              <span className={styles.uploadCaption}>Drop your report or click to browse</span>
+              <span className={styles.uploadHint}>Accepted formats: .xlsx, .xls, .zip</span>
+            </span>
           </label>
 
-          <p className={styles.uploadCaption}>UPLOAD FILE</p>
-          <p className={styles.fileHint}>
-            {selectedFileName ? selectedFileName : 'No file selected yet'}
-          </p>
+          <p className={styles.fileHint}>{selectedFileName ?? 'No file selected yet'}</p>
 
           <button
             type="button"
@@ -62,7 +67,7 @@ export default function HomePage() {
             onClick={() => setHasStarted(true)}
             disabled={!selectedFileName}
           >
-            start
+            Start validation
           </button>
         </section>
       </main>
@@ -70,8 +75,15 @@ export default function HomePage() {
   }
 
   return (
-    <main>
+    <main className={styles.appShell}>
       <section className={styles.sketchCard}>
+        <div className={styles.topBar}>
+          <p className={styles.selectedFile}>Working file: {selectedFileName}</p>
+          <button type="button" className={styles.resetButton} onClick={() => setHasStarted(false)}>
+            Upload another file
+          </button>
+        </div>
+
         <div className={styles.tabRow}>
           {validationCategories.map((category) => (
             <button
@@ -90,16 +102,23 @@ export default function HomePage() {
         <div className={styles.panelLayout}>
           <div className={styles.rulesArea}>
             {rulesPreview[activeTab].map((rule) => (
-              <p key={rule}>{rule}</p>
+              <p key={rule} className={styles.ruleCard}>
+                {rule}
+              </p>
             ))}
           </div>
 
           <div className={styles.controlsArea}>
-            <p className={styles.runAllLabel}>RUN All TESTS</p>
-            <p className={styles.statusLabel}>passed/FAIL</p>
+            <p className={styles.runAllLabel}>Current result</p>
+            <p className={styles.statusValue}>PASS</p>
+            <p className={styles.statusHint}>All previewed checks are currently expected to pass.</p>
             <div className={styles.runControls}>
-              <button type="button">RUN</button>
-              <button type="button">stop</button>
+              <button type="button" className={styles.primaryAction}>
+                Run checks
+              </button>
+              <button type="button" className={styles.secondaryAction}>
+                Stop
+              </button>
             </div>
           </div>
         </div>
