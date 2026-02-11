@@ -1,117 +1,109 @@
 'use client';
 
-import { useMemo, useState } from 'react';
-import { FileUploader } from '@/components/FileUploader';
-import { ValidationPanel } from '@/components/ValidationPanel';
-import { ValidationTabs } from '@/components/ValidationTabs';
-import { parseWorkbook } from '@/lib/fileParser';
-import type { UploadData, ValidationCategory, ValidationResult } from '@/lib/types';
-import {
-  runValidationByCategory,
-  validationCategories
-} from '@/lib/validationRules';
+import { useState } from 'react';
+import type { ValidationCategory } from '@/lib/types';
+import { validationCategories } from '@/lib/validationRules';
 import styles from '@/components/Validator.module.css';
+
+const rulesPreview: Record<ValidationCategory, string[]> = {
+  'Technical checks': [
+    '101 - Report filename extension must be zip',
+    '102 - SFTP report file size must not exceed 10GB',
+    '103 - File contains mandatory worksheet tabs'
+  ],
+  'DPM Technical checks': [
+    '201 - Template code is provided',
+    '202 - DPM version follows expected format',
+    '203 - Data point code is present'
+  ],
+  'DPM Business validation rules': [
+    '301 - Service type is mandatory',
+    '302 - Criticality value is valid',
+    '303 - Termination date is after start date'
+  ],
+  'LEI-EUID checks': [
+    '401 - LEI structure check',
+    '402 - EUID structure check',
+    '403 - At least one of LEI or EUID is present'
+  ]
+};
 
 const defaultTab: ValidationCategory = 'Technical checks';
 
 export default function HomePage() {
-  const [uploadData, setUploadData] = useState<UploadData | null>(null);
   const [activeTab, setActiveTab] = useState<ValidationCategory>(defaultTab);
-  const [results, setResults] = useState<Partial<Record<ValidationCategory, ValidationResult>>>({});
-  const [isLoading, setIsLoading] = useState(false);
-  const [error, setError] = useState<string | null>(null);
+  const [selectedFileName, setSelectedFileName] = useState<string | null>(null);
+  const [hasStarted, setHasStarted] = useState(false);
 
-  const summary = useMemo(() => {
-    const resultValues = Object.values(results);
-    if (resultValues.length === 0) {
-      return null;
-    }
+  if (!hasStarted) {
+    return (
+      <main>
+        <section className={styles.sketchCard}>
+          <h1 className={styles.sketchTitle}>DORA Register of Information Validator</h1>
 
-    const issues = resultValues.reduce((count, result) => count + (result?.issues.length ?? 0), 0);
-    const passed = resultValues.reduce((count, result) => count + (result?.passedRules ?? 0), 0);
-    const total = resultValues.reduce((count, result) => count + (result?.totalRules ?? 0), 0);
+          <label className={styles.uploadSketchBox}>
+            <input
+              type="file"
+              accept=".xlsx,.xls,.zip"
+              onChange={(event) =>
+                setSelectedFileName(event.target.files?.[0]?.name ?? null)
+              }
+            />
+          </label>
 
-    return { issues, passed, total };
-  }, [results]);
+          <p className={styles.uploadCaption}>UPLOAD FILE</p>
+          <p className={styles.fileHint}>
+            {selectedFileName ? selectedFileName : 'No file selected yet'}
+          </p>
 
-  const runAllChecks = (rows: Array<Record<string, string>>) => {
-    const nextResults: Partial<Record<ValidationCategory, ValidationResult>> = {};
-    validationCategories.forEach((category) => {
-      nextResults[category] = runValidationByCategory(category, rows);
-    });
-    setResults(nextResults);
-  };
+          <button
+            type="button"
+            className={styles.startButton}
+            onClick={() => setHasStarted(true)}
+            disabled={!selectedFileName}
+          >
+            start
+          </button>
+        </section>
+      </main>
+    );
+  }
 
   return (
     <main>
-      <header className={styles.pageHeader}>
-        <h1>DORA Register of Information Validator</h1>
-        <p>
-          Upload a source file, then navigate validation tabs to review findings for
-          Technical checks, DPM checks, business rules, and LEI-EUID checks.
-        </p>
-      </header>
-
-      <FileUploader
-        isLoading={isLoading}
-        onFileSelected={async (file) => {
-          setIsLoading(true);
-          setError(null);
-
-          try {
-            const parsed = await parseWorkbook(file);
-            setUploadData(parsed);
-            runAllChecks(parsed.rows);
-          } catch (uploadError) {
-            setUploadData(null);
-            setResults({});
-            setError(
-              uploadError instanceof Error
-                ? uploadError.message
-                : 'Unable to parse the file.'
-            );
-          } finally {
-            setIsLoading(false);
-          }
-        }}
-      />
-
-      {error ? <p className={styles.errorMessage}>{error}</p> : null}
-
-      {uploadData ? (
-        <>
-          <section className={styles.card}>
-            <h2>2. Validation overview</h2>
-            <p>
-              File: <strong>{uploadData.fileName}</strong> | Sheet:{' '}
-              <strong>{uploadData.sheetName}</strong> | Rows loaded:{' '}
-              <strong>{uploadData.rows.length}</strong>
-            </p>
-            {summary ? (
-              <p>
-                Rules passed: {summary.passed}/{summary.total} | Total findings:{' '}
-                {summary.issues}
-              </p>
-            ) : null}
+      <section className={styles.sketchCard}>
+        <div className={styles.tabRow}>
+          {validationCategories.map((category) => (
             <button
+              key={category}
               type="button"
-              className={styles.primaryButton}
-              onClick={() => runAllChecks(uploadData.rows)}
+              className={`${styles.sketchTab} ${
+                activeTab === category ? styles.sketchTabActive : ''
+              }`}
+              onClick={() => setActiveTab(category)}
             >
-              Re-run all checks
+              {category}
             </button>
-          </section>
+          ))}
+        </div>
 
-          <ValidationTabs activeTab={activeTab} onChange={setActiveTab} results={results} />
+        <div className={styles.panelLayout}>
+          <div className={styles.rulesArea}>
+            {rulesPreview[activeTab].map((rule) => (
+              <p key={rule}>{rule}</p>
+            ))}
+          </div>
 
-          <ValidationPanel category={activeTab} result={results[activeTab]} />
-        </>
-      ) : (
-        <section className={styles.card}>
-          <h2>Next step</h2>
-          <p>Upload an RoI workbook to activate all four validation sections.</p>
-        </section>
-      )}
+          <div className={styles.controlsArea}>
+            <p className={styles.runAllLabel}>RUN All TESTS</p>
+            <p className={styles.statusLabel}>passed/FAIL</p>
+            <div className={styles.runControls}>
+              <button type="button">RUN</button>
+              <button type="button">stop</button>
+            </div>
+          </div>
+        </div>
+      </section>
     </main>
   );
 }
